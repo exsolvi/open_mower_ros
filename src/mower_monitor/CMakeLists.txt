@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   mower_msgs
+  dynamic_reconfigure # Add dynamic_reconfigure dependency
 )
 
 catkin_package()
@@ -15,9 +16,10 @@ include_directories(
 
 add_executable(mower_monitor_node src/mower_monitor_node.cpp)
 
-add_dependencies(mower_monitor_node ${catkin_EXPORTED_TARGETS} ${mower_msgs_EXPORTED_TARGETS} )
+add_dependencies(mower_monitor_node ${catkin_EXPORTED_TARGETS} ${mower_msgs_EXPORTED_TARGETS} dynamic_reconfigure_generate_messages_cpp)
 
 target_link_libraries(mower_monitor_node
   ${catkin_LIBRARIES}
   ${mower_msgs_LIBRARIES}
+  ${dynamic_reconfigure_LIBRARIES} # Link dynamic_reconfigure libraries
 )

@@ -11,6 +11,7 @@
   <depend>roscpp</depend>
   <depend>std_msgs</depend>
   <depend>mower_msgs</depend>
+  <depend>dynamic_reconfigure</depend>
 
   <export>
   </export>

@@ -63,6 +63,8 @@ namespace ftc_local_planner
 
         // just to be sure
         current_movement_speed = config.speed_slow;
+        // Ensure load_factor_scale is within bounds [min_load_factor_scale, 1.0]
+        config.load_factor_scale = std::max(config.min_load_factor_scale, std::min(1.0, config.load_factor_scale));
 
         // set recovery behavior
         failure_detector_.setBufferLength(std::round(config.oscillation_recovery_min_duration * 10));
@@ -481,6 +483,9 @@ namespace ftc_local_planner
         if (current_state == FOLLOWING)
         {
             double lin_speed = lon_error * config.kp_lon + i_lon_error * config.ki_lon + d_lon * config.kd_lon;
+            // Apply the load factor scale
+            lin_speed *= config.load_factor_scale;
+
             if (lin_speed < 0 && config.forward_only)
             {
                 lin_speed = 0;
@@ -491,6 +496,7 @@ namespace ftc_local_planner
                 {
                     lin_speed = config.max_cmd_vel_speed;
                 }
+                // Cap negative linear speed by scaled max_cmd_vel_speed, but not below -config.max_cmd_vel_speed
                 else if (lin_speed < -config.max_cmd_vel_speed)
                 {
                     lin_speed = -config.max_cmd_vel_speed;
