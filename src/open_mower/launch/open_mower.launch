@@ -34,4 +34,6 @@
     </node>
 
     <node pkg="mower_logic" type="monitoring" name="monitoring" output="screen" respawn="true" respawn_delay="10"/>
+
+    <node name="mower_monitor_node" pkg="mower_monitor" type="mower_monitor_node" output="screen" respawn="true" respawn_delay="10"/>
 </launch>
