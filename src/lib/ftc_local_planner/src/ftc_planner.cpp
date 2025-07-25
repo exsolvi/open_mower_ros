@@ -316,11 +316,11 @@ namespace ftc_local_planner
             double speed;
             if (straight_dist >= config.speed_fast_threshold)
             {
-                speed = config.speed_fast;
+                speed = config.speed_fast*config.load_factor_scale;
             }
             else
             {
-                speed = config.speed_slow;
+                speed = config.speed_slow*config.load_factor_scale;
             }
 
             if (speed > current_movement_speed)
@@ -338,9 +338,6 @@ namespace ftc_local_planner
                     current_movement_speed = speed;
             }
 
-            current_movement_speed *= config.load_factor_scale;
-            current_movement_speed = std::max(current_movement_speed, config.speed_slow * config.min_load_factor_scale);
-            ROS_INFO_STREAM("FTCLocalPlannerROS: Scaled current_movement_speed: " << current_movement_speed);
             double distance_to_move = dt * current_movement_speed;
             double angle_to_move = dt * config.speed_angular * (M_PI / 180.0);
 
