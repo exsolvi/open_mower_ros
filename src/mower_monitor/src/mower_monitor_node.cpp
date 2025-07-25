@@ -3,6 +3,7 @@
 #include <mower_msgs/Status.h>
 #include <ros/ros.h>
 
+#include <cmath>  // For std::abs
 #include <deque>
 #include <numeric>  // For std::accumulate
 
@@ -45,8 +46,8 @@ class MowerMonitorNode {
       ROS_INFO("MowerMonitor: Mower motor disabled. Resetting max RPM and clearing buffer.");
     }
 
-    // Get the mowing motor RPM
-    float current_rpm = msg->mower_motor_rpm;
+    // Get the mowing motor RPM and take its absolute value
+    float current_rpm = std::abs(msg->mower_motor_rpm);
     ros::Time current_time = ros::Time::now();
 
     // Update maximum RPM observed only if motor is enabled
