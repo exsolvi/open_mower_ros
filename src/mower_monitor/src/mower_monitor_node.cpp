@@ -104,7 +104,7 @@ class MowerMonitorNode {
 
     // Cap load_factor to prevent it exceeding 1.0 (if average somehow exceeds max)
     load_factor = std::min(1.0f, load_factor);
-    // Cap load_factor to a minimum of MIN_LOAD_FACTOR (0.3)
+    load_factor = std::max(0.3f, load_factor);  // Ensure load_factor doesn't go below 0.3
 
     ROS_INFO_STREAM("MowerMonitor: Current average RPM: " << average_rpm << " | Max RPM observed: " << max_rpm_
                                                           << " | Load Factor: " << load_factor * 100.0 << "%");
