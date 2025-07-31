@@ -3,9 +3,8 @@
 
 #include <pluginlib/class_list_macros.h>
 #include "mbf_msgs/ExePathAction.h"
-#include <ctime>
-
-PLUGINLIB_EXPORT_CLASS(ftc_local_planner::FTCPlanner, mbf_costmap_core::CostmapController)
+ 
+ PLUGINLIB_EXPORT_CLASS(ftc_local_planner::FTCPlanner, mbf_costmap_core::CostmapController)
 
 #define RET_SUCCESS 0
 #define RET_COLLISION 104
@@ -316,18 +315,14 @@ namespace ftc_local_planner
             // Normal planner operation
             double straight_dist = distanceLookahead();
             double speed;
-            time_t timer;
-            time(&timer);
-            struct tm* tmi = localtime(&timer);
-            int sec = tmi->tm_sec;
-            double load_factor = (sec >= 0 && sec <= 29) ? 0.5 : 1.0;
+ 
             if (straight_dist >= config.speed_fast_threshold)
             {
-                speed = config.speed_fast*load_factor;
+                speed = config.speed_fast * config.load_factor_scale;
             }
             else
             {
-                speed = config.speed_slow*load_factor;
+                speed = config.speed_slow * config.load_factor_scale;
             }
 
             if (speed > current_movement_speed)
