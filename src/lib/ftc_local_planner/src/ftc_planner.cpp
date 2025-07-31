@@ -3,6 +3,7 @@
 
 #include <pluginlib/class_list_macros.h>
 #include "mbf_msgs/ExePathAction.h"
+#include <ctime>
 
 PLUGINLIB_EXPORT_CLASS(ftc_local_planner::FTCPlanner, mbf_costmap_core::CostmapController)
 
@@ -60,6 +61,7 @@ namespace ftc_local_planner
             c.restore_defaults = false;
         }
         config = c;
+        ROS_INFO_STREAM("FTCPlanner::reconfigureCB: New config received, load_factor_scale=" << c.load_factor_scale);
 
         // just to be sure
         current_movement_speed = config.speed_slow;
@@ -314,13 +316,18 @@ namespace ftc_local_planner
             // Normal planner operation
             double straight_dist = distanceLookahead();
             double speed;
+            time_t timer;
+            time(&timer);
+            struct tm* tmi = localtime(&timer);
+            int sec = tmi->tm_sec;
+            double load_factor = (sec >= 0 && sec <= 29) ? 0.5 : 1.0;
             if (straight_dist >= config.speed_fast_threshold)
             {
-                speed = config.speed_fast*config.load_factor_scale;
+                speed = config.speed_fast*load_factor;
             }
             else
             {
-                speed = config.speed_slow*config.load_factor_scale;
+                speed = config.speed_slow*load_factor;
             }
 
             if (speed > current_movement_speed)
