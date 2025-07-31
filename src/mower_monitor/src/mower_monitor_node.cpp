@@ -17,7 +17,7 @@ class MowerMonitorNode {
     log_timer_ = nh_.createTimer(ros::Duration(1.0), &MowerMonitorNode::logTimerCallback,
                                  this);  // Log every 1 second as requested initially
     window_duration_ = ros::Duration(1.0);
-    dr_pub_ = nh_.advertise<dynamic_reconfigure::Config>("/move_base/FTCPlanner/set_parameters", 1);
+    dr_pub_ = nh_.advertise<dynamic_reconfigure::Config>("/move_base_flex/FTCPlanner/parameter_updates", 1);
   }
 
  private:
