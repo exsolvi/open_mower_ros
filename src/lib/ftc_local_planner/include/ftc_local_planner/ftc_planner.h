@@ -46,6 +46,7 @@ namespace ftc_local_planner
 
         bool is_crashed;
 
+        ros::NodeHandle private_nh_;  // Node handle for dynamic reconfigure
         dynamic_reconfigure::Server<FTCPlannerConfig> *reconfig_server;
 
         tf2_ros::Buffer *tf_buffer;

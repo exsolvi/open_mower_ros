@@ -19,21 +19,23 @@ namespace ftc_local_planner
 
     void FTCPlanner::initialize(std::string name, tf2_ros::Buffer *tf, costmap_2d::Costmap2DROS *costmap_ros)
     {
-        ros::NodeHandle private_nh("~/" + name);
+        // Initialize the node handle as a member variable to keep it alive
+        private_nh_ = ros::NodeHandle("~/" + name);
 
-        progress_server = private_nh.advertiseService(
+        progress_server = private_nh_.advertiseService(
             "planner_get_progress", &FTCPlanner::getProgress, this);
 
-        global_point_pub = private_nh.advertise<geometry_msgs::PoseStamped>("global_point", 1);
-        global_plan_pub = private_nh.advertise<nav_msgs::Path>("global_plan", 1, true);
-        obstacle_marker_pub = private_nh.advertise<visualization_msgs::Marker>("costmap_marker", 10);
+        global_point_pub = private_nh_.advertise<geometry_msgs::PoseStamped>("global_point", 1);
+        global_plan_pub = private_nh_.advertise<nav_msgs::Path>("global_plan", 1, true);
+        obstacle_marker_pub = private_nh_.advertise<visualization_msgs::Marker>("costmap_marker", 10);
 
         costmap = costmap_ros;
         costmap_map_ = costmap->getCostmap();
         tf_buffer = tf;
 
         // Parameter for dynamic reconfigure
-        reconfig_server = new dynamic_reconfigure::Server<FTCPlannerConfig>(private_nh);
+        ROS_INFO("FTCPlanner: Setting up dynamic reconfigure server");
+        reconfig_server = new dynamic_reconfigure::Server<FTCPlannerConfig>(private_nh_);
         dynamic_reconfigure::Server<FTCPlannerConfig>::CallbackType cb = boost::bind(&FTCPlanner::reconfigureCB, this,
                                                                                      _1, _2);
         reconfig_server->setCallback(cb);
@@ -43,7 +45,7 @@ namespace ftc_local_planner
         // PID Debugging topic
         if (config.debug_pid)
         {
-            pubPid = private_nh.advertise<ftc_local_planner::PID>("debug_pid", 1, true);
+            pubPid = private_nh_.advertise<ftc_local_planner::PID>("debug_pid", 1, true);
         }
 
         // Recovery behavior initialization
@@ -54,6 +56,7 @@ namespace ftc_local_planner
 
     void FTCPlanner::reconfigureCB(FTCPlannerConfig &c, uint32_t level)
     {
+        ROS_INFO("FTCPlanner: reconfigureCB called");
         if (c.restore_defaults)
         {
             reconfig_server->getConfigDefault(c);
