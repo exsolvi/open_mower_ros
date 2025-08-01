@@ -68,7 +68,7 @@ namespace ftc_local_planner
         // just to be sure
         current_movement_speed = config.speed_slow;
         // Ensure load_factor_scale is within bounds [min_load_factor_scale, 1.0]
-        config.load_factor_scale = std::max(config.min_load_factor_scale, std::min(1.0, config.load_factor_scale));
+        config.load_factor_scale = std::min(1.0, config.load_factor_scale);
 
         // set recovery behavior
         failure_detector_.setBufferLength(std::round(config.oscillation_recovery_min_duration * 10));

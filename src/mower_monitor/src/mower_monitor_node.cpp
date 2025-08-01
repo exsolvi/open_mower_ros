@@ -101,11 +101,12 @@ class MowerMonitorNode {
 
       // Cap load_factor to prevent it exceeding 1.0 (if average somehow exceeds max)
       load_factor = std::min(1.0, load_factor);
-      load_factor = std::max(0.3, load_factor);  // Ensure load_factor doesn't go below 0.3
 
       ROS_INFO_STREAM("MowerMonitor: Current average RPM: " << average_rpm << " | Max RPM observed: " << max_rpm_
-                                                            << " | Load Factor: " << load_factor * 100.0 << "%");
+                                                            << " | Raw Load Factor: " << load_factor * 100.0 << "%");
     }
+
+    double sent_load_factor = (load_factor > 0.85) ? 1.0 : 0.0;
 
     // Publish the load_factor to ftc_local_planner using the dynamic reconfigure client
     ftc_local_planner::FTCPlannerConfig config;
@@ -113,8 +114,8 @@ class MowerMonitorNode {
     // Use a small timeout to avoid blocking indefinitely.
     if (dr_client_->getCurrentConfiguration(config, ros::Duration(0.1))) {
       // Only send an update if the value has actually changed to avoid unnecessary traffic.
-      if (std::abs(config.load_factor_scale - load_factor) > 1e-4) {
-        config.load_factor_scale = load_factor;
+      if (std::abs(config.load_factor_scale - sent_load_factor) > 1e-4) {
+        config.load_factor_scale = sent_load_factor;
         if (!dr_client_->setConfiguration(config)) {
           ROS_WARN("MowerMonitor: Failed to set new configuration on the FTCPlanner server.");
         }
