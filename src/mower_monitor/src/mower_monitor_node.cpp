@@ -1,9 +1,9 @@
-#include <dynamic_reconfigure/Config.h>
-#include <dynamic_reconfigure/DoubleParameter.h>
+#include <dynamic_reconfigure/client.h>
+#include <ftc_local_planner/FTCPlannerConfig.h>
 #include <mower_msgs/Status.h>
 #include <ros/ros.h>
 
-#include <cmath>  // For std::abs
+#include <cmath>
 #include <deque>
 #include <numeric>  // For std::accumulate
 
@@ -17,7 +17,9 @@ class MowerMonitorNode {
     log_timer_ = nh_.createTimer(ros::Duration(1.0), &MowerMonitorNode::logTimerCallback,
                                  this);  // Log every 1 second as requested initially
     window_duration_ = ros::Duration(1.0);
-    dr_pub_ = nh_.advertise<dynamic_reconfigure::Config>("/move_base_flex/FTCPlanner/parameter_updates", 1);
+    // Initialize the dynamic reconfigure client to connect to the ftc_local_planner server
+    dr_client_ = std::make_unique<dynamic_reconfigure::Client<ftc_local_planner::FTCPlannerConfig>>(
+        "/move_base_flex/FTCPlanner");
   }
 
  private:
@@ -25,7 +27,7 @@ class MowerMonitorNode {
   ros::Subscriber status_sub_;
   ros::Timer log_timer_;
   ros::Duration window_duration_;
-  ros::Publisher dr_pub_;  // Publisher for dynamic reconfigure
+  std::unique_ptr<dynamic_reconfigure::Client<ftc_local_planner::FTCPlannerConfig>> dr_client_;
 
   // Deque to store RPM values with their timestamps for moving average calculation
   std::deque<std::pair<ros::Time, float>> rpm_buffer_;
@@ -67,54 +69,60 @@ class MowerMonitorNode {
   }
 
   void logTimerCallback(const ros::TimerEvent& event) {
-    if (!mow_enabled_) {
-      // Optionally send a max load factor of 1.0 when not mowing
-      dynamic_reconfigure::Config config_msg;
-      dynamic_reconfigure::DoubleParameter double_param;
-      double_param.name = "load_factor_scale";
-      double_param.value = 1.0;  // No load when mower is off
-      config_msg.doubles.push_back(double_param);
-      dr_pub_.publish(config_msg);
+    if (!dr_client_) {
+      ROS_WARN_ONCE("MowerMonitor: Dynamic reconfigure client is not initialized.");
       return;
     }
 
-    if (rpm_buffer_.empty()) {
-      ROS_INFO("MowerMonitor: Mower motor enabled, but no RPM data received yet for current window.");
-      return;
+    double load_factor = 1.0;  // Default to 1.0 (no load) when mower is off
+
+    if (mow_enabled_) {
+      if (rpm_buffer_.empty()) {
+        ROS_INFO("MowerMonitor: Mower motor enabled, but no RPM data received yet for current window.");
+        return;  // Don't update parameter if we have no new data
+      }
+
+      // Calculate the sum of RPMs in the current window
+      float sum_rpm = 0.0;
+      for (const auto& entry : rpm_buffer_) {
+        sum_rpm += entry.second;
+      }
+
+      // Calculate the average RPM
+      float average_rpm = 0.0;
+      if (!rpm_buffer_.empty()) {
+        average_rpm = sum_rpm / rpm_buffer_.size();
+      }
+
+      // Calculate load_factor
+      if (max_rpm_ > 0) {  // Avoid division by zero
+        load_factor = average_rpm / max_rpm_;
+      }
+
+      // Cap load_factor to prevent it exceeding 1.0 (if average somehow exceeds max)
+      load_factor = std::min(1.0, load_factor);
+      load_factor = std::max(0.3, load_factor);  // Ensure load_factor doesn't go below 0.3
+
+      ROS_INFO_STREAM("MowerMonitor: Current average RPM: " << average_rpm << " | Max RPM observed: " << max_rpm_
+                                                            << " | Load Factor: " << load_factor * 100.0 << "%");
     }
 
-    // Calculate the sum of RPMs in the current window
-    float sum_rpm = 0.0;
-    for (const auto& entry : rpm_buffer_) {
-      sum_rpm += entry.second;
+    // Publish the load_factor to ftc_local_planner using the dynamic reconfigure client
+    ftc_local_planner::FTCPlannerConfig config;
+    // Get the current configuration to ensure we only modify the parameter we intend to.
+    // Use a small timeout to avoid blocking indefinitely.
+    if (dr_client_->getCurrentConfiguration(config, ros::Duration(0.1))) {
+      // Only send an update if the value has actually changed to avoid unnecessary traffic.
+      if (std::abs(config.load_factor_scale - load_factor) > 1e-4) {
+        config.load_factor_scale = load_factor;
+        if (!dr_client_->setConfiguration(config)) {
+          ROS_WARN("MowerMonitor: Failed to set new configuration on the FTCPlanner server.");
+        }
+      }
+    } else {
+      // Throttle warning to avoid spamming the log if the server is not available.
+      ROS_WARN_THROTTLE(5.0, "MowerMonitor: Could not get current configuration from FTCPlanner server.");
     }
-
-    // Calculate the average RPM
-    float average_rpm = 0.0;
-    if (rpm_buffer_.size() > 0) {
-      average_rpm = sum_rpm / rpm_buffer_.size();
-    }
-
-    // Calculate load_factor
-    float load_factor = 1.0f;  // Default to 1.0 (full speed)
-    if (max_rpm_ > 0) {        // Avoid division by zero
-      load_factor = average_rpm / max_rpm_;
-    }
-
-    // Cap load_factor to prevent it exceeding 1.0 (if average somehow exceeds max)
-    load_factor = std::min(1.0f, load_factor);
-    load_factor = std::max(0.3f, load_factor);  // Ensure load_factor doesn't go below 0.3
-
-    ROS_INFO_STREAM("MowerMonitor: Current average RPM: " << average_rpm << " | Max RPM observed: " << max_rpm_
-                                                          << " | Load Factor: " << load_factor * 100.0 << "%");
-
-    // Publish the load_factor to ftc_local_planner via dynamic reconfigure
-    dynamic_reconfigure::Config config_msg;
-    dynamic_reconfigure::DoubleParameter double_param;
-    double_param.name = "load_factor_scale";
-    double_param.value = load_factor;
-    config_msg.doubles.push_back(double_param);
-    dr_pub_.publish(config_msg);
   }
 };
 
